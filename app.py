@@ -21,6 +21,9 @@ from flask import Flask, jsonify, send_from_directory, abort, request
 # Instead of CAPSULE_DIR as a single folder, we use a ROOT and runs inside it
 CAPSULE_ROOT = Path(os.getenv("CAPSULE_ROOT", ".")).resolve()
 
+import threading
+
+search_lock = threading.Lock()
 
 app = Flask(__name__, static_folder="static", static_url_path="/static")
 
@@ -271,6 +274,44 @@ def api_runs():
     List available runs (subdirectories) under CAPSULE_ROOT.
     """
     return jsonify(list_runs())
+
+
+# app.py (or wherever your Flask app is defined)
+from maxwell import open_ended_wonder, sanitized_filename
+
+
+
+from flask import Flask, request, jsonify
+from maxwell import open_ended_wonder, sanitized_filename
+
+# ... app = Flask(__name__), other routes, etc ...
+
+@app.route("/api/search", methods=["POST"])
+def api_search():
+    data = request.get_json(force=True) or {}
+    topic = (data.get("topic") or "").strip()
+    if not topic:
+        return jsonify({"error": "topic is required"}), 400
+
+    model = data.get("model", "gemma3:12b")
+    run_id = sanitized_filename(topic)
+
+    # 🔒 try to take the lock without blocking
+    if not search_lock.acquire(blocking=False):
+        # someone else is already exploring
+        return jsonify({"error": "exploration already in progress"}), 409
+
+    try:
+        # This is your open-ended exploration loop
+        open_ended_wonder(topic, model)
+    finally:
+        # always release, even if something blows up
+        search_lock.release()
+
+    return jsonify({
+        "id": run_id,
+        "label": topic
+    })
 
 
 @app.route("/api/capsule/<capsule_id>")

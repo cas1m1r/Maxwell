@@ -3,317 +3,523 @@
 <head>
   <meta charset="UTF-8" />
   <title>Maxwell Observatory</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
   <style>
     body {
       margin: 0;
       font-family: system-ui, sans-serif;
+      background: #050608;
+      color: #eee;
       display: flex;
+      flex-direction: column;
       height: 100vh;
-      overflow: hidden;
-      background: #111;
-      color: #eee;
     }
-    #graph {
-      flex: 2;
-      border-right: 1px solid #333;
-      position: relative;
-    }
-    #sidebar {
-      flex: 1;
-      padding: 12px;
-      overflow-y: auto;
-      background: #181818;
-    }
-    #sidebar h2, #sidebar h3 {
-      margin-top: 0;
-    }
-    .info-block {
-      margin-bottom: 1rem;
-      padding: 0.5rem;
-      border-radius: 6px;
-      background: #202020;
-    }
-    .chip {
-      display: inline-block;
-      padding: 2px 6px;
-      margin: 2px;
-      border-radius: 999px;
-      font-size: 0.75rem;
-      background: #333;
-    }
-    #capsules-list {
-      max-height: 200px;
-      overflow-y: auto;
-      font-size: 0.8rem;
-    }
-    #capsules-list div {
-      cursor: pointer;
-      padding: 4px 6px;
-    }
-    #capsules-list div:hover {
-      background: #272727;
-    }
-    #top-bar {
-      position: absolute;
-      top: 8px;
-      left: 8px;
-      right: 8px;
+
+    header {
+      padding: 8px 12px;
+      border-bottom: 1px solid #333;
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      font-size: 0.8rem;
-      color: #ccc;
-      z-index: 10;
+      gap: 8px;
+      background: #080b11;
     }
-    #top-bar button {
-      padding: 4px 8px;
+
+    header h1 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 500;
+    }
+
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 0;
+      overflow: hidden;
+    }
+
+    #graph-container {
+      position: relative;
+      background: #050608;
+    }
+
+    #graph {
+      width: 100%;
+      height: 100%;
+    }
+
+    #side-panel {
+      display: flex;
+      flex-direction: column;
+      border-left: 1px solid #333;
+      background: #06070c;
+      padding: 8px 12px;
+      gap: 12px;
+      overflow: hidden;
+    }
+
+    h2 {
+      margin: 0 0 4px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .panel-section {
+      flex: 1;
+      overflow: auto;
+      border: 1px solid #222;
       border-radius: 4px;
-      border: 1px solid #555;
-      background: #222;
-      color: #eee;
+      padding: 6px 8px;
+      background: #070910;
+    }
+
+    #capsules-list button {
+      display: block;
+      width: 100%;
+      text-align: left;
+      border: none;
+      background: transparent;
+      color: #ddd;
+      padding: 4px 0;
       cursor: pointer;
+      font-size: 13px;
     }
-    #top-bar button:hover {
-      background: #333;
+
+    #capsules-list button:hover {
+      color: #fff;
+      text-decoration: underline;
     }
-    #run-select {
-      background: #222;
-      color: #eee;
-      border-radius: 4px;
-      border: 1px solid #555;
-      padding: 2px 6px;
-      font-size: 0.85rem;
+
+    .node-label {
+      font-size: 11px;
+      pointer-events: none;
+    }
+
+    .link {
+      stroke: #555;
+      stroke-opacity: 0.25;
+    }
+
+    .node {
+      stroke: #000;
+      stroke-width: 0.5px;
+      cursor: pointer;
     }
   </style>
 </head>
 <body>
-  <div id="graph">
-    <div id="top-bar">
-      <div>
-        Maxwell Observatory –
-        <select id="run-select"></select>
+  <header>
+    <h1>Maxwell Observatory</h1>
+    <label>
+      Run:
+      <select id="run-select"></select>
+    </label>
+    <input
+      id="new-topic"
+      type="text"
+      placeholder="New exploration topic..."
+      style="flex:1; max-width:420px; padding:3px 6px; background:#050608; border:1px solid #333; color:#eee;"
+    >
+    <button id="explore-btn">Explore</button>
+    <button id="refresh-btn">Refresh Graph</button>
+    <label style="display:flex; align-items:center; gap:4px;">
+      <input type="checkbox" id="auto-refresh">
+      Auto-refresh (5s)
+    </label>
+  </header>
+
+  <main>
+    <div id="graph-container">
+      <svg id="graph"></svg>
+    </div>
+
+    <div id="side-panel">
+      <div class="panel-section" id="node-details">
+        <h2>Node Details</h2>
+        <div id="node-details-body">
+          <p>Click a node to see details.</p>
+        </div>
       </div>
-      <div>
-        <button id="refresh-btn">Refresh Graph</button>
-        <label style="margin-left:8px;">
-          <input type="checkbox" id="auto-refresh" /> Auto-refresh (5s)
-        </label>
+
+      <div class="panel-section">
+        <h2>Capsules</h2>
+        <div id="capsules-list"></div>
+      </div>
+
+      <div class="panel-section">
+        <h2>Graph Overview</h2>
+        <div id="graph-overview"></div>
+        <hr style="border:none;border-top:1px solid #222;margin:6px 0;">
+        <h2>Capsule Summary</h2>
+        <pre id="capsule-summary" style="white-space:pre-wrap;font-size:12px;"></pre>
       </div>
     </div>
-    <svg id="graph-svg" width="100%" height="100%"></svg>
-  </div>
-  <div id="sidebar">
-    <h2>Node Details</h2>
-    <div class="info-block" id="node-info">
-      <em>Click a node in the graph to inspect it.</em>
-    </div>
+  </main>
 
-    <h3>Capsules</h3>
-    <div class="info-block" id="capsules-list">
-      <em>Loading capsules…</em>
-    </div>
-
-    <h3>Capsule Summary</h3>
-    <div class="info-block" id="capsule-summary">
-      <em>Click a capsule node or capsule entry above.</em>
-    </div>
-  </div>
-
-  <!-- D3.js from CDN -->
-  <script src="https://d3js.org/d3.v7.min.js"></script>
   <script>
-    const svg = d3.select("#graph-svg");
-    const width = window.innerWidth * 2 / 3;
-    const height = window.innerHeight;
+    let currentRun = null;
+    let autoTimer = null;
+    let simulation = null;
+    let svg, rootGroup, linkGroup, nodeGroup, labelGroup;
+    let lastGraph = null;
 
-    // All graph elements live in this group; zoom transforms it.
-    const container = svg.append("g").attr("id", "graph-layer");
+    // ---------- helpers: connected components ----------
 
-    const zoom = d3.zoom()
-      .scaleExtent([0.05, 5])
-      .on("zoom", (event) => {
-        container.attr("transform", event.transform);
+    function computeComponents(nodes, links) {
+      const adj = new Map();
+      nodes.forEach(n => adj.set(n.id, []));
+      links.forEach(l => {
+        const s = typeof l.source === "object" ? l.source.id : l.source;
+        const t = typeof l.target === "object" ? l.target.id : l.target;
+        if (!adj.has(s)) adj.set(s, []);
+        if (!adj.has(t)) adj.set(t, []);
+        adj.get(s).push(t);
+        adj.get(t).push(s);
       });
 
-    svg.call(zoom).on("dblclick.zoom", null);
+      const visited = new Set();
+      const idToComponent = new Map();
+      let compIndex = 0;
+      const sizePerComponent = {};
 
-    let simulation = null;
-    let currentGraph = null;
-    let currentRun = "__all__";
-    let autoTimer = null;
-
-    function nodeColor(d) {
-      if (d.type === "capsule") return "#f5a623";   // orange
-      if (d.type === "concept") return "#4a90e2";   // blue
-      if (d.type === "issue")   return "#e94e77";   // pink/red
-      return "#888";
-    }
-
-    function nodeRadius(d) {
-      if (d.type === "capsule") return 12;
-      if (d.type === "concept") return 6 + Math.min(10, d.degree || 0);
-      if (d.type === "issue")   return 8;
-      return 5;
-    }
-
-    function renderGraph(graph) {
-      currentGraph = graph;
-      container.selectAll("*").remove();
-
-      const link = container.append("g")
-        .attr("stroke", "#444")
-        .attr("stroke-opacity", 0.6)
-        .selectAll("line")
-        .data(graph.edges)
-        .enter()
-        .append("line")
-        .attr("stroke-width", e => e.type === "capsule_concept" ? 0.5 : 1.0);
-
-      const node = container.append("g")
-        .attr("stroke", "#111")
-        .attr("stroke-width", 1)
-        .selectAll("circle")
-        .data(graph.nodes)
-        .enter()
-        .append("circle")
-        .attr("r", nodeRadius)
-        .attr("fill", nodeColor)
-        .call(drag())
-        .on("click", (event, d) => {
-          showNodeDetails(d);
-          if (d.type === "capsule") {
-            const cid = d.id.replace(/^capsule:/, "");
-            loadCapsule(cid);
+      for (const n of nodes) {
+        if (visited.has(n.id)) continue;
+        const stack = [n.id];
+        let size = 0;
+        while (stack.length) {
+          const v = stack.pop();
+          if (visited.has(v)) continue;
+          visited.add(v);
+          idToComponent.set(v, compIndex);
+          size += 1;
+          const neigh = adj.get(v) || [];
+          for (const w of neigh) {
+            if (!visited.has(w)) stack.push(w);
           }
+        }
+        sizePerComponent[compIndex] = size;
+        compIndex += 1;
+      }
+
+      nodes.forEach(n => {
+        n.component = idToComponent.get(n.id) ?? -1;
+      });
+
+      return { count: compIndex, sizes: sizePerComponent };
+    }
+
+    function renderGraphOverview(componentsInfo) {
+      const el = document.getElementById("graph-overview");
+      const { count, sizes } = componentsInfo;
+      const totalNodes = Object.values(sizes).reduce((a, b) => a + b, 0);
+      const sorted = Object.entries(sizes).sort((a, b) => b[1] - a[1]);
+      const largest = sorted[0] ? sorted[0][1] : 0;
+      const isolated = Object.values(sizes).filter(s => s === 1).length;
+
+      let html = "";
+      html += `<p><b>Total nodes:</b> ${totalNodes}</p>`;
+      html += `<p><b>Connected components:</b> ${count}</p>`;
+      html += `<p><b>Largest component size:</b> ${largest}</p>`;
+      html += `<p><b>Isolated nodes:</b> ${isolated}</p>`;
+      html += `<p style="margin-top:6px;"><b>Components:</b></p>`;
+      html += `<ul style="padding-left:16px; max-height:120px; overflow:auto;">`;
+      for (const [cid, size] of sorted) {
+        html += `<li>Component ${cid}: ${size} nodes</li>`;
+      }
+      html += `</ul>`;
+      el.innerHTML = html;
+    }
+
+    function highlightComponent(componentId) {
+      if (!lastGraph) return;
+
+      const nodeSel = nodeGroup.selectAll("circle");
+      const linkSel = linkGroup.selectAll("line");
+      const labelSel = labelGroup.selectAll("text");
+
+      nodeSel.style("opacity", d => (d.component === componentId ? 1 : 0.15));
+      labelSel.style("opacity", d => (d.component === componentId ? 1 : 0.1));
+
+      linkSel.style("opacity", d => {
+        const s = typeof d.source === "object" ? d.source.component : d.source_component;
+        const t = typeof d.target === "object" ? d.target.component : d.target_component;
+        return (s === componentId && t === componentId) ? 0.4 : 0.05;
+      });
+    }
+
+    function clearHighlight() {
+      if (!lastGraph) return;
+      nodeGroup.selectAll("circle").style("opacity", 1);
+      labelGroup.selectAll("text").style("opacity", 1);
+      linkGroup.selectAll("line").style("opacity", 0.25);
+    }
+
+    // ---------- D3 graph rendering ----------
+
+    function initSvg() {
+      svg = d3.select("#graph");
+      const container = document.getElementById("graph-container");
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+      svg.attr("width", width).attr("height", height);
+
+      svg.selectAll("*").remove();
+
+      // Root group that we zoom/pan
+      rootGroup = svg.append("g").attr("class", "zoom-root");
+      linkGroup = rootGroup.append("g").attr("class", "links");
+      nodeGroup = rootGroup.append("g").attr("class", "nodes");
+      labelGroup = rootGroup.append("g").attr("class", "labels");
+
+      const zoom = d3.zoom()
+        .scaleExtent([0.1, 5])
+        .on("zoom", (event) => {
+          rootGroup.attr("transform", event.transform);
         });
 
-      const label = container.append("g")
+      svg.call(zoom).on("dblclick.zoom", null);
+    }
+
+    async function loadGraph() {
+      if (!currentRun) return;
+
+      if (!svg) {
+        initSvg();
+      } else {
+        const container = document.getElementById("graph-container");
+        svg.attr("width", container.clientWidth).attr("height", container.clientHeight);
+      }
+
+      const res = await fetch(`/api/graph?run=${encodeURIComponent(currentRun)}`);
+      const graph = await res.json();
+
+      // Normalize edges -> links
+      graph.links = graph.edges || graph.links || [];
+      lastGraph = graph;
+
+      const compInfo = computeComponents(graph.nodes, graph.links);
+      renderGraphOverview(compInfo);
+
+      // Store component on link endpoints for highlighting
+      graph.links.forEach(l => {
+        const s = graph.nodes.find(n => n.id === l.source);
+        const t = graph.nodes.find(n => n.id === l.target);
+        l.source_component = s ? s.component : -1;
+        l.target_component = t ? t.component : -1;
+      });
+
+      if (simulation) {
+        simulation.stop();
+      }
+
+      const container = document.getElementById("graph-container");
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+
+      const link = linkGroup
+        .selectAll("line")
+        .data(
+          graph.links,
+          d => `${typeof d.source === "object" ? d.source.id : d.source}-${typeof d.target === "object" ? d.target.id : d.target}-${d.type || ""}`
+        );
+
+      link.exit().remove();
+      const linkEnter = link
+        .enter()
+        .append("line")
+        .attr("class", "link");
+      const linkMerged = linkEnter.merge(link);
+
+      const node = nodeGroup
+        .selectAll("circle")
+        .data(graph.nodes, d => d.id);
+
+      node.exit().remove();
+      const nodeEnter = node
+        .enter()
+        .append("circle")
+        .attr("class", "node")
+        .attr("r", d => {
+          if (d.type === "issue") return 5;
+          if (d.type === "capsule") return 4.5;
+          return 3;
+        })
+        .attr("fill", d => {
+          if (d.type === "issue") return "#ffcc33";
+          if (d.type === "capsule") return "#ff6b9a";
+          return "#4aa3ff";
+        })
+        .on("click", (event, d) => {
+          event.stopPropagation();
+          showNodeDetails(d);
+          highlightComponent(d.component);
+        });
+
+      const nodeMerged = nodeEnter.merge(node);
+
+      // *** Only label capsule nodes (seed questions) ***
+      const capsuleNodes = graph.nodes.filter(d => d.type === "capsule");
+      const labels = labelGroup
         .selectAll("text")
-        .data(graph.nodes)
+        .data(capsuleNodes, d => d.id);
+
+      labels.exit().remove();
+      const labelsEnter = labels
         .enter()
         .append("text")
-        .attr("font-size", "10px")
-        .attr("fill", "#ccc")
-        .text(d => d.type === "capsule" ? d.label : "")
-        .attr("pointer-events", "none");
+        .attr("class", "node-label")
+        .text(d => d.label || d.id)
+        .attr("fill", "#aaa");
+
+      const labelsMerged = labelsEnter.merge(labels);
 
       simulation = d3.forceSimulation(graph.nodes)
-        .force("link", d3.forceLink(graph.edges).id(d => d.id).distance(e => {
-          if (e.type === "capsule_concept") return 60;
-          if (e.type === "concept_issue")   return 80;
-          return 40;
-        }))
-        .force("charge", d3.forceManyBody().strength(-120))
+        .force("link", d3.forceLink(graph.links).id(d => d.id).distance(40).strength(0.4))
+        .force("charge", d3.forceManyBody().strength(-50))
         .force("center", d3.forceCenter(width / 2, height / 2))
         .on("tick", () => {
-          link
+          linkMerged
             .attr("x1", d => d.source.x)
             .attr("y1", d => d.source.y)
             .attr("x2", d => d.target.x)
             .attr("y2", d => d.target.y);
 
-          node
+          nodeMerged
             .attr("cx", d => d.x)
             .attr("cy", d => d.y);
 
-          label
-            .attr("x", d => d.x + 8)
+          labelsMerged
+            .attr("x", d => d.x + 4)
             .attr("y", d => d.y + 4);
         });
-    }
 
-    function drag() {
-      function dragstarted(event, d) {
-        if (!event.active && simulation) simulation.alphaTarget(0.3).restart();
-        d.fx = d.x;
-        d.fy = d.y;
-      }
-      function dragged(event, d) {
-        d.fx = event.x;
-        d.fy = event.y;
-      }
-      function dragended(event, d) {
-        if (!event.active && simulation) simulation.alphaTarget(0);
-        d.fx = null;
-        d.fy = null;
-      }
-      return d3.drag()
-        .on("start", dragstarted)
-        .on("drag", dragged)
-        .on("end", dragended);
-    }
+      // Make nodes draggable
+      nodeMerged.call(
+        d3.drag()
+          .on("start", (event, d) => {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+          })
+          .on("drag", (event, d) => {
+            d.fx = event.x;
+            d.fy = event.y;
+          })
+          .on("end", (event, d) => {
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+          })
+      );
 
-    function showNodeDetails(node) {
-      const div = document.getElementById("node-info");
-      const capsules = (node.capsules || []).join(", ");
-      div.innerHTML = `
-        <div><strong>Label:</strong> ${node.label}</div>
-        <div><strong>ID:</strong> ${node.id}</div>
-        <div><strong>Type:</strong> ${node.type}</div>
-        <div><strong>Degree:</strong> ${node.degree || 0}</div>
-        <div><strong>Capsules:</strong> ${capsules || "<em>none</em>"}</div>
-      `;
-    }
-
-    async function loadGraph() {
-      const res = await fetch(`/api/graph?run=${encodeURIComponent(currentRun)}`);
-      const graph = await res.json();
-      renderGraph(graph);
-    }
-
-    async function loadCapsulesList() {
-      const res = await fetch(`/api/capsules?run=${encodeURIComponent(currentRun)}`);
-      const data = await res.json();
-      const listDiv = document.getElementById("capsules-list");
-      if (!data.length) {
-        listDiv.innerHTML = "<em>No capsules found for this run.</em>";
-        return;
-      }
-      listDiv.innerHTML = "";
-      data.forEach(c => {
-        const row = document.createElement("div");
-        row.textContent = `${c.id} – ${c.seed || "(no seed)"}`;
-        row.onclick = () => loadCapsule(c.id);
-        listDiv.appendChild(row);
+      // Click on empty background clears highlight + details
+      svg.on("click", (event) => {
+        if (event.target === svg.node()) {
+          clearHighlight();
+          document.getElementById("node-details-body").innerHTML =
+            "<p>Click a node to see details.</p>";
+        }
       });
     }
 
-    async function loadCapsule(cid) {
-      const res = await fetch(`/api/capsule/${encodeURIComponent(cid)}?run=${encodeURIComponent(currentRun)}`);
-      if (!res.ok) return;
-      const cap = await res.json();
-      const div = document.getElementById("capsule-summary");
+    // ---------- Node + capsule UI ----------
 
-      const numConcepts = Object.keys(cap.concepts || {}).length;
-      const numIssues = Object.keys(cap.issues || {}).length;
-      const numEdges = (cap.edges || []).length;
-      const numQuestions = (cap.questions || []).length;
+    function showNodeDetails(node) {
+      const body = document.getElementById("node-details-body");
+      const capsulesList = node.capsules || [];
+      const capsuleItems = capsulesList.map(id => `<li>${id}</li>`).join("");
 
-      div.innerHTML = `
-        <div><strong>Seed:</strong> ${cap.seed || ""}</div>
-        <div><strong>Concepts:</strong> ${numConcepts}</div>
-        <div><strong>Issues:</strong> ${numIssues}</div>
-        <div><strong>Edges:</strong> ${numEdges}</div>
-        <div><strong>Questions:</strong> ${numQuestions}</div>
-        <div style="margin-top:0.5rem;"><strong>Questions Explored:</strong></div>
-        <div>${(cap.questions || []).slice(0, 10).map(q => `<div class="chip">${q}</div>`).join("")}</div>
+      // simple neighbor stats
+      let neighborSummary = "";
+      if (lastGraph) {
+        const neighbors = new Set();
+        const edgeTypes = {};
+        lastGraph.links.forEach(l => {
+          const sId = typeof l.source === "object" ? l.source.id : l.source;
+          const tId = typeof l.target === "object" ? l.target.id : l.target;
+          if (sId === node.id || tId === node.id) {
+            const other = sId === node.id ? tId : sId;
+            neighbors.add(other);
+            const et = l.type || "edge";
+            edgeTypes[et] = (edgeTypes[et] || 0) + 1;
+          }
+        });
+        neighborSummary += `<p><b>Neighbors:</b> ${neighbors.size}</p>`;
+        neighborSummary += `<p><b>Edges by type:</b></p><ul>`;
+        Object.entries(edgeTypes).forEach(([t, c]) => {
+          neighborSummary += `<li>${t}: ${c}</li>`;
+        });
+        neighborSummary += `</ul>`;
+      }
+
+      body.innerHTML = `
+        <p><b>Label:</b> ${node.label || node.id}</p>
+        <p><b>ID:</b> ${node.id}</p>
+        <p><b>Type:</b> ${node.type || "unknown"}</p>
+        <p><b>Degree:</b> ${node.degree ?? "?"}</p>
+        <p><b>Component:</b> ${node.component}</p>
+        ${neighborSummary}
+        <p><b>Capsules:</b></p>
+        <ul>${capsuleItems || "<li>(none)</li>"}</ul>
+        <p style="font-size:11px;opacity:0.75;">Click a capsule in the list below to see its summary.</p>
       `;
     }
 
-    async function loadRuns() {
-      const res = await fetch("/api/runs");
-      const runs = await res.json();
-      const sel = document.getElementById("run-select");
-      sel.innerHTML = "";
+    async function loadCapsulesList() {
+      if (!currentRun) return;
+      const res = await fetch(`/api/capsules?run=${encodeURIComponent(currentRun)}`);
+      const data = await res.json();  // backend returns an array
+      const listEl = document.getElementById("capsules-list");
+      listEl.innerHTML = "";
 
-      if (!runs.length) {
-        const opt = document.createElement("option");
-        opt.value = "__all__";
-        opt.textContent = "No runs found";
-        sel.appendChild(opt);
-        currentRun = "__all__";
+      (data || []).forEach(c => {
+        const btn = document.createElement("button");
+        const label = c.seed || c.id || c.filename;
+        btn.textContent = label;
+        btn.onclick = () => loadCapsuleSummary(c.id);
+        listEl.appendChild(btn);
+      });
+    }
+
+    async function loadCapsuleSummary(capsuleId) {
+      const res = await fetch(`/api/capsule/${encodeURIComponent(capsuleId)}?run=${encodeURIComponent(currentRun)}`);
+      if (!res.ok) {
+        document.getElementById("capsule-summary").textContent = "(failed to load capsule)";
         return;
       }
+      const data = await res.json();
+      const summaryEl = document.getElementById("capsule-summary");
+
+      const concepts = Object.values(data.concepts || {});
+      const issues = Object.values(data.issues || {});
+      const seed = data.seed || capsuleId;
+
+      let out = "";
+      out += `Capsule: ${capsuleId}\n`;
+      out += `Seed: ${seed}\n\n`;
+      out += `Concepts (${concepts.length}):\n`;
+      concepts.slice(0, 15).forEach(c => {
+        out += `  - ${c.label} (count=${c.count})\n`;
+      });
+      if (concepts.length > 15) out += `  ... +${concepts.length - 15} more\n`;
+
+      out += `\nIssues (${issues.length}):\n`;
+      issues.slice(0, 10).forEach(i => {
+        out += `  - ${i.label} (concepts=${(i.concepts || []).length})\n`;
+      });
+      if (issues.length > 10) out += `  ... +${issues.length - 10} more\n`;
+
+      summaryEl.textContent = out;
+    }
+
+    // ---------- Runs + controls ----------
+
+    async function loadRuns() {
+      const res = await fetch("/api/runs");
+      const data = await res.json(); // backend returns an array
+      const runs = Array.isArray(data) ? data : (data.runs || []);
+      const sel = document.getElementById("run-select");
+      sel.innerHTML = "";
 
       runs.forEach((r, idx) => {
         const opt = document.createElement("option");
@@ -327,12 +533,14 @@
 
       sel.onchange = () => {
         currentRun = sel.value;
+        clearHighlight();
         loadGraph();
         loadCapsulesList();
       };
     }
 
     document.getElementById("refresh-btn").onclick = () => {
+      clearHighlight();
       loadGraph();
       loadCapsulesList();
     };
@@ -348,6 +556,34 @@
         autoTimer = null;
       }
     });
+
+    // Use /api/search to kick off a new exploration
+    document.getElementById("explore-btn").onclick = async () => {
+      const topicEl = document.getElementById("new-topic");
+      const topic = topicEl.value.trim();
+      if (!topic) return;
+
+      try {
+        const res = await fetch("/api/search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ topic: topic, model: "gemma3:12b" }),
+        });
+
+        if (!res.ok) {
+          console.error("Search failed", await res.text());
+        }
+      } catch (err) {
+        console.error("Search error", err);
+      }
+
+      topicEl.value = "";
+      await loadRuns();
+      await loadGraph();
+      await loadCapsulesList();
+    };
+
+    // ---------- boot ----------
 
     (async () => {
       await loadRuns();

@@ -64,7 +64,7 @@ def one_shot_exploration(subject: str, model: str)->"Reflector":
     return reflector
 
 
-def open_ended_wonder(topic:str, model: str, limit:int=10)->"Reflector":
+def open_ended_wonder(topic:str, model: str, limit:int=12)->"Reflector":
     exploring = True
     t0 = time.time()
     depth = 1
@@ -106,7 +106,7 @@ def open_ended_wonder(topic:str, model: str, limit:int=10)->"Reflector":
             reflector = Reflector(endpoint=URL, model=model, capsule=capsule)
             report = reflector.reflect()
             # save result
-            out_file = f'{os.path.join(out_folder, sanitized_filename(seed))}.json'
+            out_file = f'{os.path.join(out_folder, sanitized_filename(seed[0:10]))}.json'
             # reflector.save_report(out_file)
             with open(out_file, "w") as f:
                 f.write(json.dumps(capsule, indent=2))
@@ -154,15 +154,18 @@ def sanitized_filename(subject):
 def main():
     open_ended = True
     model = 'gemma3:12b'
-    # seed = 'How does money hold value?'
-    seed = 'Over the course of human history has the slope of moral progress been positive or negative?'
+    seed = 'How does money hold value?'
+    # seed = 'Over the course of human history has the slope of moral progress been positive or negative?'
     import sys
     if len(sys.argv) > 1:
         seed = ' '.join(sys.argv[1:])
     if not open_ended:
         one_shot_exploration(seed, model)
     else:
-        open_ended_wonder(seed, model)
+        if os.path.isfile('questions.txt'):
+            questions = open('questions.txt').read().splitlines()
+            for seed in questions:
+                open_ended_wonder(seed, model,limit=18)
 
 
 if __name__ == '__main__':
